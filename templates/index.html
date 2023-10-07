@@ -1,0 +1,143 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ShohaibAI</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <link rel="icon" type="image/svg+xml" href="{% static 'icons/myicon.svg' %}">
+  <link rel="stylesheet" type="text/css" href="{% static 'css/styles.css' %}">
+  <style>
+    #typedPrompt {
+      overflow-y: hidden;
+      resize: none;
+      height: 38px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 class="text-center m-4">Welcome to shohaibAI</h1>
+  <p class="subheader">Powered by GPT-3.5 turbo</p>
+
+  <div class="chat">
+    <div id="prompt"></div>
+  </div>
+
+  <div class="form-wrapper">
+    <div class="form-floating">
+      <textarea class="form-control" placeholder="Send a message" id="typedPrompt"></textarea>
+      <label for="floatingTextarea">Send a message</label>
+      {%csrf_token%}
+      <button type="button" id="submit" class="btn btn-primary my-3">Submit</button>
+    </div>
+  </div>
+  <script>
+    let csrfmiddlewaretoken = document.querySelector("input[type=hidden]").value;
+
+    const fetchData = async () => {
+      const data = new FormData();
+      data.append('prompt', document.querySelector("#prompt").innerText);
+      data.append('csrfmiddlewaretoken', csrfmiddlewaretoken);
+
+      try {
+        const response = await fetch("/api", {
+          method: 'POST',
+          body: data,
+          credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("There was a problem with the fetch operation:", error);
+      }
+    };
+
+    const submitButton = document.getElementById("submit");
+    const promptElement = document.getElementById("prompt");
+    const typedPromptElement = document.getElementById("typedPrompt");
+
+    typedPromptElement.addEventListener("keydown", function (event) {
+      if (event.keyCode === 13 && !event.shiftKey) {
+        event.preventDefault();
+        submitButton.click();
+      }
+    });
+
+    submitButton.addEventListener("click", async () => {
+      if (!typedPromptElement.value.trim()) {
+        return;
+      }
+      let lastGroup = document.querySelector(".chat-group:last-child");
+
+      if (!lastGroup) {
+        lastGroup = document.createElement('div');
+        lastGroup.classList.add('chat-group');
+        promptElement.appendChild(lastGroup);
+      }
+
+      const userMessage = document.createElement('p');
+      userMessage.textContent = typedPromptElement.value;
+      userMessage.classList.add('user-message');
+      lastGroup.appendChild(userMessage);
+
+      
+      typedPromptElement.value = '';
+      autoExpand(typedPromptElement);
+
+      
+      const typingElement = document.createElement('p');
+      typingElement.innerHTML = `shohaibAI: <span class="typing-dots"><div></div><div></div><div></div></span>`;
+      lastGroup.appendChild(typingElement);
+
+      const apiResponse = await fetchData();
+      if (apiResponse && apiResponse.choices && apiResponse.choices[0].message.content) {
+        typingElement.textContent = `shohaibAI: ${apiResponse.choices[0].message.content}`;
+        typingElement.classList.add('ai-response');
+      } else {
+        console.error("Unexpected response format:", apiResponse);
+      }
+    });
+
+
+    let initialHeight = null;
+
+    function autoExpand(element) {
+      if (!initialHeight) {
+        initialHeight = element.offsetHeight; 
+      }
+
+      
+      element.style.height = initialHeight + 'px';
+
+     
+      if (element.scrollHeight > initialHeight) {
+        let height = element.scrollHeight; 
+        element.style.height = height + 'px';
+      }
+    }
+
+    typedPromptElement.addEventListener('input', function () {
+      autoExpand(typedPromptElement);
+    });
+
+    // Initially adjust size on page load
+    window.addEventListener('DOMContentLoaded', (event) => {
+      autoExpand(typedPromptElement);
+    });
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+    crossorigin="anonymous"></script>
+</body>
+
+</html>
